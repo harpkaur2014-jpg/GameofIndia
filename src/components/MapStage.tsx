@@ -24,6 +24,7 @@ export const MapStage: React.FC<MapStageProps> = ({
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hoveredStudyId, setHoveredStudyId] = useState<string | null>(null);
+  const [hoveredStudyPoint, setHoveredStudyPoint] = useState<[number, number] | null>(null);
   const [showReferenceModal, setShowReferenceModal] = useState<boolean>(false);
 
   const handleZoom = (delta: number) => {
@@ -43,6 +44,7 @@ export const MapStage: React.FC<MapStageProps> = ({
     d: string;
     centroid: [number, number];
     bounds: [number, number, number, number];
+    hitAreas?: [number, number][];
   }>;
 
   const currentPoly = currentTerritory ? polyData[currentTerritory.id] : null;
@@ -187,13 +189,65 @@ export const MapStage: React.FC<MapStageProps> = ({
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
                   className={canInspect ? 'cursor-pointer transition-colors duration-150' : 'pointer-events-none'}
-                  onMouseEnter={canInspect ? () => setHoveredStudyId(id) : undefined}
-                  onMouseLeave={canInspect ? () => setHoveredStudyId(null) : undefined}
+                  onMouseEnter={canInspect ? () => {
+                    setHoveredStudyId(id);
+                    setHoveredStudyPoint(geometry.centroid);
+                  } : undefined}
+                  onMouseLeave={canInspect ? () => {
+                    setHoveredStudyId(null);
+                    setHoveredStudyPoint(null);
+                  } : undefined}
                   onClick={canInspect && territory ? () => onSelectTerritoryInStudy?.(territory) : undefined}
                 />
               );
             })}
           </g>
+
+          {/* Enlarged hover and click targets help users find tiny or scattered territories. */}
+          {mode === 'study' && Object.entries(polyData).map(([id, geometry]) => {
+            const territory = allTerritories.find(t => t.id === id);
+            if (!territory || !geometry.hitAreas?.length) return null;
+            const isHovered = hoveredStudyId === id;
+            const hitRadius = id === 'lakshadweep' ? 11 : id === 'andaman_nicobar' ? 9 : 8;
+
+            return (
+              <g key={`hit-areas-${id}`}>
+                {geometry.hitAreas.map(([cx, cy], index) => (
+                  <circle
+                    key={`marker-${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={isHovered ? 3.2 : 2.4}
+                    fill={isHovered ? '#3B82F6' : '#F59E0B'}
+                    stroke="#FFFFFF"
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                    pointerEvents="none"
+                  />
+                ))}
+                {geometry.hitAreas.map(([cx, cy], index) => (
+                  <circle
+                    key={`target-${index}`}
+                    cx={cx}
+                    cy={cy}
+                    r={hitRadius}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    pointerEvents="all"
+                    onMouseEnter={() => {
+                      setHoveredStudyId(id);
+                      setHoveredStudyPoint([cx, cy]);
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredStudyId(null);
+                      setHoveredStudyPoint(null);
+                    }}
+                    onClick={() => onSelectTerritoryInStudy?.(territory)}
+                  />
+                ))}
+              </g>
+            );
+          })}
 
           {/* The target is filled from the same exact path used for its map border. */}
           {mode === 'quiz' && currentPoly && currentTerritory && (
@@ -314,7 +368,7 @@ export const MapStage: React.FC<MapStageProps> = ({
 
               return (
                 <g
-                  transform={`translate(${pItem.centroid[0]}, ${Math.max(28, pItem.centroid[1] - 18)})`}
+                  transform={`translate(${(hoveredStudyPoint ?? pItem.centroid)[0]}, ${Math.max(28, (hoveredStudyPoint ?? pItem.centroid)[1] - 18)})`}
                   className="animate-fadeIn"
                 >
                   <rect
