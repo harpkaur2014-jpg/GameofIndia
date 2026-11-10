@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { IndiaTerritory } from '../data/indiaStates';
-import referencePolygons from '../data/referencePolygons.json';
+import indiaGeoPaths from '../data/indiaGeoPaths.json';
 import { ZoomIn, ZoomOut, RotateCcw, Crosshair, HelpCircle, X } from 'lucide-react';
 
 interface MapStageProps {
@@ -39,11 +39,10 @@ export const MapStage: React.FC<MapStageProps> = ({
     setPanOffset({ x: 0, y: 0 });
   };
 
-  const polyData = (referencePolygons as unknown) as Record<string, {
-    id: string;
+  const polyData = indiaGeoPaths as Record<string, {
+    d: string;
     centroid: [number, number];
     bounds: [number, number, number, number];
-    poly: [number, number][];
   }>;
 
   const currentPoly = currentTerritory ? polyData[currentTerritory.id] : null;
@@ -143,18 +142,12 @@ export const MapStage: React.FC<MapStageProps> = ({
           transformOrigin: 'center center',
         }}
       >
-        {/* Exact Clean Reference Map Image: Consistent with user provided map, no labels, no white blocks */}
-        <img
-          src="/assets/aistudio/india_map_clean.png"
-          alt="Map of India highlighting states and union territories"
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-contain pointer-events-none drop-shadow-sm select-none"
-        />
-
-        {/* SVG Overlay layer matching 504x572 image dimensions */}
+        {/* GeoJSON map and highlights share one set of state boundaries. */}
         <svg
           viewBox="0 0 504 572"
-          className="absolute inset-0 w-full h-full z-10 overflow-visible pointer-events-none"
+          role="img"
+          aria-label="Map of India highlighting states and union territories"
+          className="absolute inset-0 w-full h-full z-10 overflow-visible"
         >
           <defs>
             {/* Luminous Glow Filter for Highlighted State */}
@@ -174,40 +167,41 @@ export const MapStage: React.FC<MapStageProps> = ({
             </filter>
           </defs>
 
-          {/* 1. Study Mode Clickable & Hoverable Regions */}
-          {mode === 'study' && (
-            <g className="pointer-events-auto">
-              {allTerritories.map(t => {
-                const pItem = polyData[t.id];
-                if (!pItem) return null;
-                const isHovered = hoveredStudyId === t.id;
-                const isMastered = masteredIds.has(t.id);
-                const pts = pItem.poly.map(pt => pt.join(',')).join(' ');
+          {/* Base territories are drawn directly from the supplied GeoJSON. */}
+          <g>
+            {Object.entries(polyData).map(([id, geometry]) => {
+              const territory = allTerritories.find(t => t.id === id);
+              const isHovered = mode === 'study' && hoveredStudyId === id;
+              const isMastered = masteredIds.has(id);
+              const canInspect = mode === 'study' && Boolean(territory);
 
-                return (
-                  <polygon
-                    key={`study-${t.id}`}
-                    points={pts}
-                    fill={isHovered ? '#3B82F6' : isMastered ? '#10B981' : 'transparent'}
-                    fillOpacity={isHovered ? 0.45 : isMastered ? 0.2 : 0}
-                    stroke={isHovered ? '#1D4ED8' : isMastered ? '#059669' : 'transparent'}
-                    strokeWidth={isHovered ? 2.5 : 1}
-                    className="cursor-pointer transition-all duration-150"
-                    onMouseEnter={() => setHoveredStudyId(t.id)}
-                    onMouseLeave={() => setHoveredStudyId(null)}
-                    onClick={() => onSelectTerritoryInStudy?.(t)}
-                  />
-                );
-              })}
-            </g>
-          )}
+              return (
+                <path
+                  key={`map-${id}`}
+                  d={geometry.d}
+                  fill={isHovered ? '#3B82F6' : isMastered ? '#10B981' : '#5D91C9'}
+                  fillOpacity={isHovered ? 0.8 : isMastered ? 0.75 : 1}
+                  fillRule="evenodd"
+                  stroke="#FFFFFF"
+                  strokeWidth={0.8}
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                  className={canInspect ? 'cursor-pointer transition-colors duration-150' : 'pointer-events-none'}
+                  onMouseEnter={canInspect ? () => setHoveredStudyId(id) : undefined}
+                  onMouseLeave={canInspect ? () => setHoveredStudyId(null) : undefined}
+                  onClick={canInspect && territory ? () => onSelectTerritoryInStudy?.(territory) : undefined}
+                />
+              );
+            })}
+          </g>
 
-          {/* 2. Highlight Layer: Target State illuminated clearly directly on the map (No pointers) */}
+          {/* The target is filled from the same exact path used for its map border. */}
           {mode === 'quiz' && currentPoly && currentTerritory && (
             <g id="india-target-highlight" className="transition-all duration-200">
               {/* Vibrant Glowing State Polygon Overlay */}
-              <polygon
-                points={currentPoly.poly.map(pt => pt.join(',')).join(' ')}
+              <path
+                d={currentPoly.d}
+                fillRule="evenodd"
                 filter={
                   answerState === 'correct'
                     ? 'url(#luminous-green-glow)'
@@ -230,20 +224,23 @@ export const MapStage: React.FC<MapStageProps> = ({
                     ? '#991B1B'
                     : '#B45309'
                 }
-                strokeWidth={3.5}
+                strokeWidth={0.8}
                 strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
                 className="transition-all duration-200"
               />
 
               {/* Shimmering animated dash border on top of state shape */}
               {answerState === 'unanswered' && (
-                <polygon
-                  points={currentPoly.poly.map(pt => pt.join(',')).join(' ')}
+                <path
+                  d={currentPoly.d}
+                  fillRule="evenodd"
                   fill="none"
                   stroke="#FFFFFF"
-                  strokeWidth={2}
+                  strokeWidth={1.2}
                   strokeDasharray="6 4"
                   strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
                   className="animate-pulse"
                   opacity={0.9}
                 />

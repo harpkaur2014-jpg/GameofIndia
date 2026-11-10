@@ -8,12 +8,12 @@ export interface IndiaTerritory {
   type: TerritoryType;
   capital: string;
   region: IndiaRegion;
-  // Center coordinates on the 504x572 map canvas
+  // Retained layout metadata; map shapes come from indiaGeoPaths.json.
   x: number;
   y: number;
-  // Bounding box for masking label during quiz mode
+  // Legacy label layout metadata.
   labelBox?: { x: number; y: number; w: number; h: number };
-  // Approximate polygon vertices on 504x572 for regional highlight glow
+  // Legacy approximate shape metadata.
   polyCoords: [number, number][];
   // Geographic & cultural trivia for learning
   funFact: string;
@@ -40,6 +40,21 @@ export const INDIA_TERRITORIES: IndiaTerritory[] = [
     language: 'Kashmiri, Dogri, Urdu',
     areaKm2: 42241,
     distractors: ['Himachal Pradesh', 'Uttarakhand', 'Punjab', 'Haryana']
+  },
+  {
+    id: 'ladakh',
+    name: 'Ladakh',
+    type: 'ut',
+    capital: 'Leh',
+    region: 'North',
+    x: 188,
+    y: 46,
+    polyCoords: [[160, 20], [210, 20], [230, 75], [185, 90], [150, 55]],
+    funFact: 'India’s highest-altitude union territory, known for Himalayan landscapes and Buddhist monasteries.',
+    landmark: 'Pangong Tso & Hemis Monastery',
+    language: 'Ladakhi, Hindi, Urdu',
+    areaKm2: 59146,
+    distractors: ['Jammu & Kashmir', 'Himachal Pradesh', 'Sikkim', 'Uttarakhand']
   },
   {
     id: 'himachal_pradesh',
@@ -282,36 +297,19 @@ export const INDIA_TERRITORIES: IndiaTerritory[] = [
     distractors: ['Rajasthan', 'Maharashtra', 'Madhya Pradesh', 'Goa']
   },
   {
-    id: 'daman_diu',
-    name: 'Daman and Diu',
+    id: 'dadra_daman_diu',
+    name: 'Dadra and Nagar Haveli and Daman and Diu',
     type: 'ut',
     capital: 'Daman',
     region: 'West',
-    x: 55,
-    y: 322,
-    labelBox: { x: 12, y: 322, w: 60, h: 14 },
-    polyCoords: [[48, 318], [62, 318], [62, 326], [48, 326]],
-    funFact: 'Historic coastal Portuguese colony known for majestic seafront forts and sandy beaches.',
-    landmark: 'Fort Jerome & Moti Daman Fort',
-    language: 'Gujarati, Hindi, Portuguese',
-    areaKm2: 112,
-    distractors: ['Goa', 'Dadra and Nagar Haveli', 'Gujarat', 'Maharashtra']
-  },
-  {
-    id: 'dadra_nagar_haveli',
-    name: 'Dadra and Nagar Haveli',
-    type: 'ut',
-    capital: 'Silvassa',
-    region: 'West',
-    x: 86,
-    y: 336,
-    labelBox: { x: 14, y: 340, w: 68, h: 24 },
-    polyCoords: [[80, 332], [92, 332], [92, 342], [80, 342]],
-    funFact: 'Tucked between Gujarat and Maharashtra, renowned for lush greenery and tribal art culture.',
-    landmark: 'Vanganga Lake Garden & Tribal Museum',
+    x: 70,
+    y: 325,
+    polyCoords: [[64, 318], [76, 318], [76, 334], [64, 334]],
+    funFact: 'A western coastal union territory formed by merging Dadra and Nagar Haveli with Daman and Diu.',
+    landmark: 'Moti Daman Fort & Vanganga Lake Garden',
     language: 'Gujarati, Hindi, Marathi',
-    areaKm2: 491,
-    distractors: ['Daman and Diu', 'Goa', 'Maharashtra', 'Gujarat']
+    areaKm2: 603,
+    distractors: ['Goa', 'Gujarat', 'Maharashtra', 'Lakshadweep']
   },
   {
     id: 'maharashtra',
@@ -455,7 +453,7 @@ export const INDIA_TERRITORIES: IndiaTerritory[] = [
     landmark: 'Agatti Island & Kavaratti Marine Aquarium',
     language: 'Malayalam, Jeseri, Mahl',
     areaKm2: 32,
-    distractors: ['Andaman and Nicobar Islands', 'Goa', 'Kerala', 'Daman and Diu']
+    distractors: ['Andaman and Nicobar Islands', 'Goa', 'Kerala', 'Dadra and Nagar Haveli and Daman and Diu']
   },
   {
     id: 'andaman_nicobar',
