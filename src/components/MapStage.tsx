@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { IndiaTerritory } from '../data/indiaStates';
 import indiaGeoPaths from '../data/indiaGeoPaths.json';
 import { ZoomIn, ZoomOut, RotateCcw, Crosshair, HelpCircle, X } from 'lucide-react';
@@ -23,16 +23,36 @@ export const MapStage: React.FC<MapStageProps> = ({
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
   const [hoveredStudyId, setHoveredStudyId] = useState<string | null>(null);
   const [hoveredStudyPoint, setHoveredStudyPoint] = useState<[number, number] | null>(null);
   const [showReferenceModal, setShowReferenceModal] = useState<boolean>(false);
 
+  const clampPan = (offset: { x: number; y: number }, zoom: number) => {
+    const viewport = viewportRef.current;
+    if (!viewport || zoom <= 1) return { x: 0, y: 0 };
+    const maxX = (viewport.clientWidth * (zoom - 1)) / 2;
+    const maxY = (viewport.clientHeight * (zoom - 1)) / 2;
+    return {
+      x: Math.max(-maxX, Math.min(maxX, offset.x)),
+      y: Math.max(-maxY, Math.min(maxY, offset.y)),
+    };
+  };
+
   const handleZoom = (delta: number) => {
-    setZoomLevel(prev => {
-      const next = Math.max(1, Math.min(2.8, prev + delta));
-      if (next === 1) setPanOffset({ x: 0, y: 0 });
-      return next;
-    });
+    const nextZoom = Math.max(1, Math.min(2.8, zoomLevel + delta));
+    setZoomLevel(nextZoom);
+    setPanOffset(previous => clampPan(previous, nextZoom));
   };
 
   const handleResetZoom = () => {
@@ -51,12 +71,52 @@ export const MapStage: React.FC<MapStageProps> = ({
 
   const handleFocusTarget = () => {
     if (!currentPoly) return;
-    setZoomLevel(1.85);
-    // Center point in 504x572 viewBox is (252, 286)
+    const nextZoom = 1.85;
+    setZoomLevel(nextZoom);
+    // Center the target while keeping the map inside the draggable viewport.
     const [cx, cy] = currentPoly.centroid;
-    const targetX = (252 - cx) * 0.8;
-    const targetY = (286 - cy) * 0.8;
-    setPanOffset({ x: targetX, y: targetY });
+    const viewport = viewportRef.current;
+    const scaleX = (viewport?.clientWidth ?? 504) / 504;
+    const scaleY = (viewport?.clientHeight ?? 572) / 572;
+    setPanOffset(clampPan({
+      x: (252 - cx) * scaleX * nextZoom,
+      y: (286 - cy) * scaleY * nextZoom,
+    }, nextZoom));
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (zoomLevel <= 1 || event.button !== 0) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startPanX: panOffset.x,
+      startPanY: panOffset.y,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 3) drag.moved = true;
+    setPanOffset(clampPan({ x: drag.startPanX + deltaX, y: drag.startPanY + deltaY }, zoomLevel));
+  };
+
+  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setIsDragging(false);
+    suppressClickRef.current = drag.moved;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (drag.moved) window.setTimeout(() => { suppressClickRef.current = false; }, 0);
   };
 
   const isSmallTerritory = currentTerritory ? currentTerritory.areaKm2 < 18000 : false;
@@ -138,10 +198,27 @@ export const MapStage: React.FC<MapStageProps> = ({
 
       {/* Map Viewport Container */}
       <div
-        className="relative w-full max-w-[504px] aspect-[504/572] transition-transform duration-200 ease-out flex items-center justify-center p-2"
+        ref={viewportRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onClickCapture={event => {
+          if (suppressClickRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressClickRef.current = false;
+          }
+        }}
+        className={`relative w-full max-w-[504px] aspect-[504/572] ${
+          isDragging ? 'transition-none' : 'transition-transform duration-200 ease-out'
+        } flex items-center justify-center p-2 ${
+          zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
         style={{
-          transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           transformOrigin: 'center center',
+          touchAction: zoomLevel > 1 ? 'none' : 'auto',
         }}
       >
         {/* GeoJSON map and highlights share one set of state boundaries. */}
@@ -406,6 +483,11 @@ export const MapStage: React.FC<MapStageProps> = ({
           </span>
         ) : (
           <span>Hover or click any state on the map to review its capital and geography trivia.</span>
+        )}
+        {zoomLevel > 1 && (
+          <span className="block mt-1 font-medium text-slate-600 dark:text-slate-300">
+            Drag the map to explore the zoomed area.
+          </span>
         )}
       </div>
 
