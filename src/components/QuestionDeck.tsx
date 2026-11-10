@@ -11,6 +11,7 @@ interface QuestionDeckProps {
   onNextQuestion: () => void;
   onSkipQuestion: () => void;
   requeueOffset: number | null;
+  isFinalCorrectAnswer?: boolean;
 }
 
 export const QuestionDeck: React.FC<QuestionDeckProps> = ({
@@ -22,6 +23,7 @@ export const QuestionDeck: React.FC<QuestionDeckProps> = ({
   onNextQuestion,
   onSkipQuestion,
   requeueOffset,
+  isFinalCorrectAnswer = false,
 }) => {
   const [showHint, setShowHint] = useState<boolean>(false);
 
@@ -204,7 +206,7 @@ export const QuestionDeck: React.FC<QuestionDeckProps> = ({
             onClick={onNextQuestion}
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.99] cursor-pointer"
           >
-            <span>Continue to Next Question</span>
+            <span>{isFinalCorrectAnswer ? 'View Results' : 'Continue to Next Question'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

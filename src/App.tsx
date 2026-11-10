@@ -117,6 +117,7 @@ export default function App() {
     return activePool.find(t => t.id === currentTerritoryId) || null;
   }, [currentTerritoryId, activePool]);
   const displayedTerritory = answerState === 'unanswered' ? currentTerritory : answeredTerritory;
+  const isFinalCorrectAnswer = answerState === 'correct' && pendingQueue?.length === 0;
 
   // Generate 4 randomized options (1 correct + 3 smart distractors)
   const generateOptionsFor = useCallback((target: IndiaTerritory, pool: IndiaTerritory[]) => {
@@ -364,6 +365,7 @@ export default function App() {
                     onNextQuestion={handleNextQuestion}
                     onSkipQuestion={handleSkipQuestion}
                     requeueOffset={requeueOffset}
+                    isFinalCorrectAnswer={isFinalCorrectAnswer}
                   />
                 ) : (
                   /* Study Mode Sidebar Guide */
