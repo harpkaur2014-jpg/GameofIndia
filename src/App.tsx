@@ -57,6 +57,8 @@ export default function App() {
 
   // Spaced Repetition Queue
   const [queue, setQueue] = useState<string[]>([]);
+  // The next queue is staged after an answer and committed only on Continue.
+  const [pendingQueue, setPendingQueue] = useState<string[] | null>(null);
   const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
   const [missedHistory, setMissedHistory] = useState<Record<string, number>>({});
   const [streak, setStreak] = useState<number>(0);
@@ -69,6 +71,8 @@ export default function App() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [currentOptions, setCurrentOptions] = useState<IndiaTerritory[]>([]);
   const [requeueOffset, setRequeueOffset] = useState<number | null>(null);
+  // Preserve the answered target for feedback until Continue is selected.
+  const [answeredTerritory, setAnsweredTerritory] = useState<IndiaTerritory | null>(null);
 
   // Study Mode detail drawer state
   const [inspectedTerritory, setInspectedTerritory] = useState<IndiaTerritory | null>(null);
@@ -87,6 +91,7 @@ export default function App() {
   const initializeQuiz = useCallback((territories: IndiaTerritory[] = activePool) => {
     const shuffledIds = shuffleArray(territories.map(t => t.id));
     setQueue(shuffledIds);
+    setPendingQueue(null);
     setMasteredIds(new Set());
     setMissedHistory({});
     setStreak(0);
@@ -96,6 +101,7 @@ export default function App() {
     setAnswerState('unanswered');
     setSelectedOption(null);
     setRequeueOffset(null);
+    setAnsweredTerritory(null);
     setMode('quiz');
   }, [activePool]);
 
@@ -110,6 +116,7 @@ export default function App() {
     if (!currentTerritoryId) return null;
     return activePool.find(t => t.id === currentTerritoryId) || null;
   }, [currentTerritoryId, activePool]);
+  const displayedTerritory = answerState === 'unanswered' ? currentTerritory : answeredTerritory;
 
   // Generate 4 randomized options (1 correct + 3 smart distractors)
   const generateOptionsFor = useCallback((target: IndiaTerritory, pool: IndiaTerritory[]) => {
@@ -151,20 +158,31 @@ export default function App() {
 
   // Advance to next question in queue
   const handleNextQuestion = useCallback(() => {
-    if (queue.length === 0) {
+    if (pendingQueue === null) return;
+    if (pendingQueue.length === 0) {
+      setQueue([]);
+      setPendingQueue(null);
+      setAnswerState('unanswered');
+      setSelectedOption(null);
+      setRequeueOffset(null);
+      setAnsweredTerritory(null);
       setMode('summary');
       return;
     }
 
+    setQueue(pendingQueue);
+    setPendingQueue(null);
     setAnswerState('unanswered');
     setSelectedOption(null);
     setRequeueOffset(null);
-  }, [queue]);
+    setAnsweredTerritory(null);
+  }, [pendingQueue]);
 
   // Handle User Answer Selection
   const handleSelectOption = useCallback((optionId: string) => {
     if (answerState !== 'unanswered' || !currentTerritory) return;
 
+    setAnsweredTerritory(currentTerritory);
     setSelectedOption(optionId);
     const isCorrect = optionId === currentTerritory.id;
 
@@ -186,9 +204,8 @@ export default function App() {
         return next;
       });
 
-      // Remove from queue
-      const nextQueue = queue.slice(1);
-      setQueue(nextQueue);
+      // Stage removal until the student chooses Continue.
+      setPendingQueue(queue.slice(1));
     } else {
       // 2. Incorrect Answer flow
       setAnswerState('incorrect');
@@ -215,7 +232,8 @@ export default function App() {
         ...remainingQueue.slice(insertIndex),
       ];
 
-      setQueue(updatedQueue);
+      // Stage the spaced-repetition queue until the student chooses Continue.
+      setPendingQueue(updatedQueue);
       setRequeueOffset(insertIndex);
     }
   }, [answerState, currentTerritory, masteredIds, queue]);
@@ -233,6 +251,8 @@ export default function App() {
     setQueue(updated);
     setAnswerState('unanswered');
     setSelectedOption(null);
+    setAnsweredTerritory(null);
+    setPendingQueue(null);
   }, [currentTerritory, queue]);
 
   // Keyboard navigation shortcuts
@@ -322,7 +342,7 @@ export default function App() {
               {/* Left Zone: Interactive Map Stage (7 cols on desktop) */}
               <div className="lg:col-span-7 flex flex-col min-h-[460px] sm:min-h-[560px]">
                 <MapStage
-                  currentTerritory={currentTerritory}
+                  currentTerritory={displayedTerritory}
                   mode={mode}
                   answerState={answerState}
                   selectedOption={selectedOption}
@@ -334,9 +354,9 @@ export default function App() {
 
               {/* Right Zone: Question Deck (5 cols on desktop) */}
               <div className="lg:col-span-5 flex flex-col">
-                {mode === 'quiz' && currentTerritory ? (
+                {mode === 'quiz' && displayedTerritory ? (
                   <QuestionDeck
-                    currentTerritory={currentTerritory}
+                    currentTerritory={displayedTerritory}
                     options={currentOptions}
                     answerState={answerState}
                     selectedOption={selectedOption}
@@ -410,8 +430,10 @@ export default function App() {
           setInspectedTerritory(null);
           // Re-order queue so this territory is tested immediately
           setQueue([t.id, ...queue.filter(id => id !== t.id)]);
+          setPendingQueue(null);
           setMode('quiz');
           setAnswerState('unanswered');
+          setAnsweredTerritory(null);
         }}
       />
     </div>

@@ -33,7 +33,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           <div className="h-1/3 bg-[#128807]" />
         </div>
         <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 font-sans">
-          IndiaQuest
+          India Game
         </span>
       </div>
 

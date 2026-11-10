@@ -1,5 +1,5 @@
 {
-  "name": "IndiaQuest - States of India Geography Test",
+  "name": "India Game",
   "description": "An interactive geography quiz game on the states and territories of India featuring spaced repetition learning, state highlighting, hint guides, and celebratory confetti.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
