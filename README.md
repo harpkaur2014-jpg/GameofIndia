@@ -1,4 +1,4 @@
-•  Problem: Who is the application for, and what problem does it address? 
+# Problem: Who is the application for, and what problem does it address? 
 We created this application to learn the states and territories of India. 
 Our group members are from India, and we have always wanted to learn the states and territories of India, so we decided to create an interactive game that is engaging and makes learning fun.
 •  Core function: What is the main thing a user can do? 
